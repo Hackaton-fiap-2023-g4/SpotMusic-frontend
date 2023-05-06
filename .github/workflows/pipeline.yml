@@ -1,0 +1,82 @@
+name: Google Cloud Run Deploy
+# https://github.com/google-github-actions/setup-gcloud
+on:
+  push:
+    branches:
+      - main
+
+env:
+  PROJECT_ID: grupo-04-384916
+  RUN_REGION: us-central1
+  SERVICE_NAME: medium-react-app
+
+jobs:
+  build:
+    name: Build React App
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@main
+
+      - name: Setup Node.js (NPM)
+        uses: actions/setup-node@master
+        with:
+          node-version: '12.x'
+
+      - name: Use cached node_modules
+        uses: actions/cache@master
+        with:
+          path: node_modules
+          key: nodeModules-${{ hashFiles('**/yarn.lock') }}
+          restore-keys: |
+            nodeModules-
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+        env:
+          CI: true
+
+      - name: Build Development
+        run: yarn build
+
+      - name: Archive Production Artifact
+        uses: actions/upload-artifact@main
+        with:
+          name: build
+          path: build
+
+  deploy-gcr:
+    name: Deploy to GCR
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@main
+
+      - name: Download Artifact
+        uses: actions/download-artifact@main
+        with:
+          name: build
+          path: .docker/build
+
+      - name: Auth GCP
+        uses: 'google-github-actions/auth@v1' # https://github.com/google-github-actions/auth
+        with:
+          credentials_json: '${{ secrets.GOOGLE_CREDENTIALS }}'
+
+      - name: Cloud Run Deploy
+        id: deploy
+        run: |-
+          gcloud run deploy ${{ vars.GOOGLE_MYAPP_FRONT }} \
+            --quiet \
+            --region  ${{ vars.GOOGLE_REGION }} \
+            --image ${{ vars.GOOGLE_ARTIFACT }}/${{ vars.GOOGLE_PROJECT_ID }}/${{ vars.GOOGLE_REPONAME }}/${{ vars.GOOGLE_MYAPP }}:latest \
+            --platform managed \
+            --allow-unauthenticated \
+            --project ${{ vars.GOOGLE_PROJECT_ID }} \
+            --format json
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v0.2.1
+
