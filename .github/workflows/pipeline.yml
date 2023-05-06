@@ -39,11 +39,10 @@ jobs:
       - name: Build Development
         run: yarn build
 
-      - name: Archive Production Artifact
-        uses: actions/upload-artifact@main
-        with:
-          name: build
-          path: build
+      - name: Build & Push Image
+        run: | 
+          docker build -t ${{ vars.GOOGLE_ARTIFACT }}/${{ vars.GOOGLE_PROJECT_ID }}/${{ vars.GOOGLE_REPONAME }}/${{ vars.GOOGLE_MYAPP_FRONT }}:latest .
+          docker push ${{ vars.GOOGLE_ARTIFACT }}/${{ vars.GOOGLE_PROJECT_ID }}/${{ vars.GOOGLE_REPONAME }}/${{ vars.GOOGLE_MYAPP_FRONT }}:latest
 
   deploy-gcr:
     name: Deploy to GCR
